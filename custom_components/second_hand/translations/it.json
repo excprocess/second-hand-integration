@@ -32,11 +32,12 @@
       },
       "timers": {
         "title": "Quali timer deve mostrare questo orologio?",
-        "description": "Seleziona gli assistenti vocali, gli helper timer e i dispositivi Alexa da mostrare su questo orologio. Per Alexa, scegli i sensori \"Prossimo timer\" di Alexa Media Player.",
+        "description": "Seleziona gli assistenti vocali, gli helper timer e i dispositivi Alexa da mostrare su questo orologio. Facoltativo: scegli entità on/off (modalità notte, Non disturbare dell'Echo...) che spengono le luci finché sono accese. Per Alexa, scegli i sensori \"Prossimo timer\" di Alexa Media Player.",
         "data": {
           "assist_devices": "Assistenti vocali",
           "helpers": "Helper timer",
-          "alexa_sensors": "Timer Alexa (Alexa Media Player)"
+          "alexa_sensors": "Timer Alexa (Alexa Media Player)",
+          "suppress_entities": "Spegni le luci mentre una di queste è accesa"
         }
       }
     },
@@ -58,11 +59,12 @@
     "step": {
       "init": {
         "title": "Quali timer deve mostrare questo orologio?",
-        "description": "Seleziona gli assistenti vocali, gli helper timer e i dispositivi Alexa da mostrare su questo orologio. Per Alexa, scegli i sensori \"Prossimo timer\" di Alexa Media Player.",
+        "description": "Seleziona gli assistenti vocali, gli helper timer e i dispositivi Alexa da mostrare su questo orologio. Facoltativo: scegli entità on/off (modalità notte, Non disturbare dell'Echo...) che spengono le luci finché sono accese. Per Alexa, scegli i sensori \"Prossimo timer\" di Alexa Media Player.",
         "data": {
           "assist_devices": "Assistenti vocali",
           "helpers": "Helper timer",
-          "alexa_sensors": "Timer Alexa (Alexa Media Player)"
+          "alexa_sensors": "Timer Alexa (Alexa Media Player)",
+          "suppress_entities": "Spegni le luci mentre una di queste è accesa"
         }
       }
     },
@@ -79,6 +81,11 @@
     "binary_sensor": {
       "connected": {
         "name": "Connesso"
+      }
+    },
+    "switch": {
+      "lights": {
+        "name": "Luci"
       }
     },
     "button": {

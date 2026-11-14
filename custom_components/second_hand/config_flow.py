@@ -29,6 +29,7 @@ from .const import (
     CONF_ALEXA_SENSORS,
     CONF_ASSIST_DEVICES,
     CONF_HELPERS,
+    CONF_SUPPRESS,
     ALLOW_TIMERS_ONLY,
     CONF_TIMERS_ONLY,
     DOMAIN,
@@ -41,6 +42,8 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = "Echo Wall Clock"
 ALEXA_MEDIA_DOMAIN = "alexa_media"  # Alexa Media Player (HACS)
+SUPPRESS_DOMAINS = ["input_boolean", "switch", "binary_sensor", "light", "schedule", "group"]
+"""On/off entities that can switch the clock's lights off (night mode, Echo Do Not Disturb, a schedule...)."""
 
 
 def _timer_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
@@ -63,6 +66,9 @@ def _timer_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
                 EntitySelectorConfig(
                     integration=ALEXA_MEDIA_DOMAIN, domain="sensor", device_class="timestamp", multiple=True
                 )
+            ),
+            vol.Optional(CONF_SUPPRESS, default=current.get(CONF_SUPPRESS, [])): EntitySelector(
+                EntitySelectorConfig(domain=SUPPRESS_DOMAINS, multiple=True)
             ),
         }
     )

@@ -9,7 +9,11 @@ from typing import Protocol
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.event import async_track_point_in_utc_time, async_track_time_interval
+from homeassistant.helpers.event import (
+    async_track_point_in_utc_time,
+    async_track_state_change_event,
+    async_track_time_interval,
+)
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, ISSUE_ASSIST_UNSUPPORTED, POLL_SECONDS
@@ -45,8 +49,12 @@ class ClockController:
         link: ClockLink | None = None,
         *,
         alexa_sensors: list[str] | None = None,
+        suppress_entities: list[str] | None = None,
     ) -> None:
         self.hass = hass
+        self._suppress_entities = list(suppress_entities or [])
+        self._suppress_unsub: CALLBACK_TYPE | None = None
+        self._lights_enabled = True  # the "Lights" switch
         self._reconciler = Reconciler(dt_util.get_default_time_zone())
         self._assist = AssistTimers(hass, assist_devices, self._changed, self._finished)
         self._helpers = HelperTimers(hass, helpers, self._changed, self._finished)
@@ -66,6 +74,44 @@ class ClockController:
     @property
     def has_link(self) -> bool:
         return self._link is not None
+
+    @property
+    def lights_enabled(self) -> bool:
+        """State of the manual Lights switch."""
+        return self._lights_enabled
+
+    @property
+    def lights_suppressed(self) -> bool:
+        """True while the clock should show nothing: the switch is off or a picked entity is on."""
+        if not self._lights_enabled:
+            return True
+        return any((s := self.hass.states.get(e)) is not None and s.state == "on" for e in self._suppress_entities)
+
+    @callback
+    def set_lights_enabled(self, enabled: bool) -> None:
+        if enabled != self._lights_enabled:
+            self._lights_enabled = enabled
+            self._refresh(dt_util.utcnow())
+            self._notify()
+
+    @callback
+    def _suppress_changed(self, event: object) -> None:
+        self._refresh(dt_util.utcnow())
+        self._notify()
+
+    @callback
+    def _watch_suppress(self) -> None:
+        if self._suppress_unsub is not None:
+            self._suppress_unsub()
+            self._suppress_unsub = None
+        if self._suppress_entities:
+            self._suppress_unsub = async_track_state_change_event(
+                self.hass, self._suppress_entities, self._suppress_changed
+            )
+
+    def _shown(self, timers: dict[str, ClockTimer]) -> dict[str, ClockTimer]:
+        """What the clock gets: nothing while the lights are suppressed (the Timers sensor still lists them)."""
+        return {} if self.lights_suppressed else timers
 
     @callback
     def attach_link(self, link: ClockLink) -> None:
@@ -88,9 +134,14 @@ class ClockController:
 
     @callback
     def update_sources(
-        self, assist_devices: list[str], helpers: list[str], alexa_sensors: list[str] | None = None
+        self,
+        assist_devices: list[str],
+        helpers: list[str],
+        alexa_sensors: list[str] | None = None,
+        suppress_entities: list[str] | None = None,
     ) -> None:
         """Change which timers are shown without touching the link to the clock."""
+        self._suppress_entities = list(suppress_entities or [])
         self._assist.stop()
         self._helpers.stop()
         self._alexa.stop()
@@ -115,11 +166,15 @@ class ClockController:
             )
         self._helpers.start()
         self._alexa.start()
+        self._watch_suppress()
 
     async def async_stop(self) -> None:
         self._assist.stop()
         self._helpers.stop()
         self._alexa.stop()
+        if self._suppress_unsub is not None:
+            self._suppress_unsub()
+            self._suppress_unsub = None
         while self._unsubs:
             self._unsubs.pop()()
         self._cancel_tick()
@@ -153,6 +208,8 @@ class ClockController:
 
     @callback
     def _finished(self, key: str) -> None:
+        if self.lights_suppressed:
+            return  # no pulse while the lights are off
         self._reconciler.on_finished(dt_util.utcnow(), key)
         self._schedule_tick()
 
@@ -169,7 +226,7 @@ class ClockController:
         timers = self._snapshot(now)
         changed = _visible(timers) != _visible(self.timers)
         self.timers = timers
-        self._send(self._reconciler.update(now, timers))
+        self._send(self._reconciler.update(now, self._shown(timers)))
         if changed:
             self._notify()
 
@@ -179,7 +236,7 @@ class ClockController:
     def _link_up(self) -> None:
         now = dt_util.utcnow()
         self.timers = self._snapshot(now)
-        self._send(self._reconciler.on_connected(now, self.timers))
+        self._send(self._reconciler.on_connected(now, self._shown(self.timers)))
         self._notify()
 
     @callback

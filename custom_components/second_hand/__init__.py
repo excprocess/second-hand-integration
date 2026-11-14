@@ -7,10 +7,10 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .const import CONF_ADAPTER, CONF_ADDRESS, CONF_ALEXA_SENSORS, CONF_ASSIST_DEVICES, CONF_HELPERS
+from .const import CONF_ADAPTER, CONF_ADDRESS, CONF_ALEXA_SENSORS, CONF_ASSIST_DEVICES, CONF_HELPERS, CONF_SUPPRESS
 from .controller import ClockController
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR, Platform.SWITCH]
 
 type EchoWallClockConfigEntry = ConfigEntry[ClockController]
 
@@ -21,6 +21,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: EchoWallClockConfigEntry
         list(entry.options.get(CONF_ASSIST_DEVICES, [])),
         list(entry.options.get(CONF_HELPERS, [])),
         alexa_sensors=list(entry.options.get(CONF_ALEXA_SENSORS, [])),
+        suppress_entities=list(entry.options.get(CONF_SUPPRESS, [])),
     )
     stop_call_ins = None
     if address := entry.data.get(CONF_ADDRESS):
@@ -89,4 +90,5 @@ async def _options_updated(hass: HomeAssistant, entry: EchoWallClockConfigEntry)
         list(entry.options.get(CONF_ASSIST_DEVICES, [])),
         list(entry.options.get(CONF_HELPERS, [])),
         list(entry.options.get(CONF_ALEXA_SENSORS, [])),
+        list(entry.options.get(CONF_SUPPRESS, [])),
     )
