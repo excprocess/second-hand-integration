@@ -28,6 +28,7 @@ from .const import (
     CONF_ADDRESS,
     CONF_ALEXA_SENSORS,
     CONF_ASSIST_DEVICES,
+    CONF_GOOGLE_SENSORS,
     CONF_HELPERS,
     CONF_SUPPRESS,
     ALLOW_TIMERS_ONLY,
@@ -42,6 +43,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = "Echo Wall Clock"
 ALEXA_MEDIA_DOMAIN = "alexa_media"  # Alexa Media Player (HACS)
+GOOGLE_HOME_DOMAIN = "google_home"  # leikoilja/ha-google-home (HACS)
 SUPPRESS_DOMAINS = ["input_boolean", "switch", "binary_sensor", "light", "schedule", "group"]
 """On/off entities that can switch the clock's lights off (night mode, Echo Do Not Disturb, a schedule...)."""
 
@@ -67,6 +69,9 @@ def _timer_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
                     integration=ALEXA_MEDIA_DOMAIN, domain="sensor", device_class="timestamp", multiple=True
                 )
             ),
+            vol.Optional(CONF_GOOGLE_SENSORS, default=current.get(CONF_GOOGLE_SENSORS, [])): EntitySelector(
+                EntitySelectorConfig(integration=GOOGLE_HOME_DOMAIN, domain="sensor", multiple=True)
+            ),
             vol.Optional(CONF_SUPPRESS, default=current.get(CONF_SUPPRESS, [])): EntitySelector(
                 EntitySelectorConfig(domain=SUPPRESS_DOMAINS, multiple=True)
             ),
@@ -76,7 +81,10 @@ def _timer_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
 
 def _picked_something(user_input: dict[str, Any]) -> bool:
     return bool(
-        user_input.get(CONF_ASSIST_DEVICES) or user_input.get(CONF_HELPERS) or user_input.get(CONF_ALEXA_SENSORS)
+        user_input.get(CONF_ASSIST_DEVICES)
+        or user_input.get(CONF_HELPERS)
+        or user_input.get(CONF_ALEXA_SENSORS)
+        or user_input.get(CONF_GOOGLE_SENSORS)
     )
 
 

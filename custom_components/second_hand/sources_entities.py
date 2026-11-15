@@ -1,4 +1,5 @@
-"""Timers read from other integrations' sensors: Alexa Media Player (`sensor.<echo>_next_timer`).
+"""Timers read from other integrations' sensors: Alexa Media Player (`sensor.<echo>_next_timer`) and
+Google Home (`sensor.<speaker>_timers` from `leikoilja/ha-google-home`).
 
 Fork addition. These integrations have no timer events, only sensors whose attributes list the timers, refreshed
 by push or polling. So this source re-reads the picked sensors whenever they change, and works out on its own
@@ -26,6 +27,7 @@ from .reconcile import SAME_END, ClockTimer
 _LOGGER = logging.getLogger(__name__)
 
 ALEXA_PREFIX = "alexa:"
+GOOGLE_PREFIX = "google:"
 
 FINISH_WINDOW = timedelta(seconds=3)
 """A timer that drops off its sensor this close to its end time finished (it wasn't cancelled)."""
@@ -100,12 +102,57 @@ def _epoch_ms(value: Any) -> datetime | None:
         return None
 
 
+def _epoch_s(value: Any) -> datetime | None:
+    if not _is_number(value) or value <= 0:
+        return None
+    seconds = value / 1000 if value > 10_000_000_000 else value
+    try:
+        return datetime.fromtimestamp(seconds, UTC)
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
 def _parse_time(value: Any) -> datetime | None:
     if isinstance(value, datetime):
         return value if value.tzinfo else None
     if isinstance(value, str) and (parsed := dt_util.parse_datetime(value)) and parsed.tzinfo:
         return parsed
     return None
+
+
+# ---------------------------------------------------------------- Google Home (ha-google-home)
+
+
+def parse_google(attrs: Mapping[str, Any]) -> list[ClockTimer]:
+    """Timers in the attributes of a Google Home `timers` sensor (`leikoilja/ha-google-home`).
+
+    Reads `timers` (a list of dicts). Running timers have status `set` and `fire_time` in epoch seconds (or
+    `local_time_iso`). Paused timers have status `paused`. Ringing or inactive timers (`ringing`, `none`) are
+    skipped so a ringing timer drops off the active list and triggers the finish pulse.
+    """
+    items = _json_list(attrs.get("timers")) or []
+    out: list[ClockTimer] = []
+    for raw in items:
+        if not isinstance(raw, Mapping):
+            _LOGGER.debug("Skipping a Google Home entry this version does not understand: %r", raw)
+            continue
+        timer_id = raw.get("timer_id") or raw.get("id")
+        if not timer_id:
+            continue
+        key = GOOGLE_PREFIX + str(timer_id)
+        name = str(raw.get("label") or "")
+        status = str(raw.get("status", "")).lower()
+        if status == "paused":
+            out.append(ClockTimer(key, None, name))
+            continue
+        if status != "set":
+            continue
+        ends_at = _epoch_s(raw.get("fire_time")) or _parse_time(raw.get("local_time_iso"))
+        if ends_at is None:
+            _LOGGER.debug("Skipping a Google Home timer without an end time: %r", raw)
+            continue
+        out.append(ClockTimer(key, ends_at, name))
+    return out
 
 
 # ---------------------------------------------------------------- the source

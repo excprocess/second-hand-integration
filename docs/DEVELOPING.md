@@ -12,8 +12,8 @@ VIRTUAL_ENV=.venv uv pip install pytest-homeassistant-custom-component
 - `sources.py`: Assist (voice satellite) timers and timer helpers. All use of HA's internal TimerManager is
   in this file.
 - `sources_entities.py` (fork): timers read from other integrations' sensors (Alexa Media Player
-  `next_timer`). Pure parser plus a source that detects the end of a timer on its own; real attributes in
-  `fixtures/alexa-next-timer-two-active.yaml`.
+  `next_timer`, Google Home `timers`). Pure parsers plus a source that detects the end of a timer on its own;
+  real attributes in `fixtures/alexa-next-timer-two-active.yaml`.
 - `controller.py`: one clock, wiring sources, reconciler and the link.
 - `link.py`: connect, Discover handshake, hold the link, retry with backoff. Transport-agnostic.
 - `bluez.py`: BlueZ over D-Bus (pairing agent, search, call-in listener) and the RFCOMM socket. Linux only.

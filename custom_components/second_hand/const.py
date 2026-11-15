@@ -7,6 +7,7 @@ CONF_ADAPTER = "adapter"
 CONF_ASSIST_DEVICES = "assist_devices"
 CONF_HELPERS = "helpers"
 CONF_ALEXA_SENSORS = "alexa_sensors"  # fork: Alexa Media Player next_timer sensors
+CONF_GOOGLE_SENSORS = "google_sensors"  # fork: ha-google-home timers sensors
 CONF_SUPPRESS = "suppress_entities"  # fork: while any of these is on, the clock shows nothing
 CONF_TIMERS_ONLY = "timers_only"
 

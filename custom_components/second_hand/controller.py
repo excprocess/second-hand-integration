@@ -19,7 +19,7 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN, ISSUE_ASSIST_UNSUPPORTED, POLL_SECONDS
 from .reconcile import ClockTimer, Command, Reconciler
 from .sources import AssistTimers, HelperTimers
-from .sources_entities import EntityTimers, parse_alexa
+from .sources_entities import EntityTimers, parse_alexa, parse_google
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +49,7 @@ class ClockController:
         link: ClockLink | None = None,
         *,
         alexa_sensors: list[str] | None = None,
+        google_sensors: list[str] | None = None,
         suppress_entities: list[str] | None = None,
     ) -> None:
         self.hass = hass
@@ -59,6 +60,7 @@ class ClockController:
         self._assist = AssistTimers(hass, assist_devices, self._changed, self._finished)
         self._helpers = HelperTimers(hass, helpers, self._changed, self._finished)
         self._alexa = EntityTimers(hass, alexa_sensors or [], parse_alexa, self._changed, self._finished)
+        self._google = EntityTimers(hass, google_sensors or [], parse_google, self._changed, self._finished)
         self._link = link
         self._listeners: list[Callable[[], None]] = []
         self._unsubs: list[CALLBACK_TYPE] = []
@@ -139,15 +141,18 @@ class ClockController:
         helpers: list[str],
         alexa_sensors: list[str] | None = None,
         suppress_entities: list[str] | None = None,
+        google_sensors: list[str] | None = None,
     ) -> None:
         """Change which timers are shown without touching the link to the clock."""
         self._suppress_entities = list(suppress_entities or [])
         self._assist.stop()
         self._helpers.stop()
         self._alexa.stop()
+        self._google.stop()
         self._assist = AssistTimers(self.hass, assist_devices, self._changed, self._finished)
         self._helpers = HelperTimers(self.hass, helpers, self._changed, self._finished)
         self._alexa = EntityTimers(self.hass, alexa_sensors or [], parse_alexa, self._changed, self._finished)
+        self._google = EntityTimers(self.hass, google_sensors or [], parse_google, self._changed, self._finished)
         self._start_sources()
         self._refresh(dt_util.utcnow())
 
@@ -166,12 +171,14 @@ class ClockController:
             )
         self._helpers.start()
         self._alexa.start()
+        self._google.start()
         self._watch_suppress()
 
     async def async_stop(self) -> None:
         self._assist.stop()
         self._helpers.stop()
         self._alexa.stop()
+        self._google.stop()
         if self._suppress_unsub is not None:
             self._suppress_unsub()
             self._suppress_unsub = None
@@ -219,7 +226,12 @@ class ClockController:
 
     @callback
     def _snapshot(self, now: datetime) -> dict[str, ClockTimer]:
-        return {**self._assist.snapshot(now), **self._helpers.snapshot(now), **self._alexa.snapshot(now)}
+        return {
+            **self._assist.snapshot(now),
+            **self._helpers.snapshot(now),
+            **self._alexa.snapshot(now),
+            **self._google.snapshot(now),
+        }
 
     @callback
     def _refresh(self, now: datetime) -> None:
